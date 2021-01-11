@@ -26,7 +26,7 @@ pool:
 # Global variables for the pipeline
 variables:
   - name: 'k8s-service-connection'
-    value: 'Kubernetes-Hellman'
+    value: 'sandbox-emcla-pmyxn'
   - name: 'kubernetes-namespace'
     value: 'sandbox-emcla-pmyxn'
 
