@@ -32,7 +32,7 @@ func main() {
 	r.HandleFunc("/get-monthly-total-cost/{accountid}", GetMonthlyTotalCost)
 
 	println("HTTP server listening on :8080")
-	if err := http.ListenAndServe("127.0.0.1:8080", handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(authMiddleware.Middleware(r)))); err != nil {
+	if err := http.ListenAndServe(":8080", handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(authMiddleware.Middleware(r)))); err != nil {
 		log.Fatal(err)
 	}
 }
