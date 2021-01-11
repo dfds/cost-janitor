@@ -5,12 +5,14 @@ metadata:
   labels:
     app: cost-janitor
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: cost-janitor
   template:
     metadata:
+      annotations:
+        iam.amazonaws.com/role: $(IAM_ROLE)
       labels:
         app: cost-janitor
     spec:
