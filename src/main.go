@@ -28,8 +28,6 @@ func main() {
 		Provider: provider,
 	}
 
-
-
 	r := mux.NewRouter()
 	r.HandleFunc("/get-monthly-total-cost/{accountid}", GetMonthlyTotalCost)
 
@@ -93,7 +91,6 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqToken := r.Header.Get("Authorization") //Authorization: Bearer a7ydfs87afasd8f990
-		fmt.Printf("%+v\n", reqToken)
 		splitToken := strings.Split(reqToken, "Bearer")
 		if len(splitToken) != 2 {
 			http.Error(w, "Token doesn't seem right", http.StatusUnauthorized)
@@ -107,7 +104,6 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 			http.Error(w, "Unable to verify token", http.StatusUnauthorized)
 			return
 		}
-		fmt.Printf("%+v\n", idToken)
 
 		var claims struct {
 			Emails []string `json:"emails"`
@@ -117,7 +113,6 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 			http.Error(w, "Unable to retrieve claims", http.StatusUnauthorized)
 			return
 		}
-		fmt.Printf("%+v\n", claims)
 
 		next.ServeHTTP(w, r)
 	})

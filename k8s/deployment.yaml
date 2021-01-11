@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-janitor
+  labels:
+    app: cost-janitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-janitor
+  template:
+    metadata:
+      labels:
+        app: cost-janitor
+    spec:
+      containers:
+      - name: cost-janitor
+        image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/ded/cost-janitor:$(Build.BuildId)
+        ports:
+        - containerPort: 8080
+          name: web
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
