@@ -27,9 +27,9 @@ func main() {
 	fmt.Println("Launching cost-janitor")
 
 	rdb = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr:     "localhost:6379",
 		Password: "",
-		DB: 0,
+		DB:       0,
 	})
 
 	provider, err := oidc.NewProvider(context.Background(), "https://login.microsoftonline.com/73a99466-ad05-4221-9f90-e7142aa2f6c1/v2.0")
@@ -44,7 +44,9 @@ func main() {
 
 	r := mux.NewRouter()
 	r.Handle("/get-monthly-total-cost/{accountid}", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCost)))
+	r.Handle("/get-monthly-total-cost-all", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
 	r.Handle("/basic/get-monthly-total-cost/{accountid}", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCost)))
+	r.Handle("/basic/get-monthly-total-cost-all", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
 
 	addr := fmt.Sprintf("%s:8080", LISTEN_ADDRESS)
 	fmt.Printf("HTTP server listening on %s\n", addr)
@@ -68,7 +70,6 @@ func getCurrentFullMonthDateRange() (string, string) {
 func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	redisKey := fmt.Sprintf("currentmonth.acc.%s", vars["accountid"])
-
 
 	val, err := rdb.Get(redis_ctx, redisKey).Result()
 	switch {
@@ -105,15 +106,15 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 
 	filter := &costexplorer.Expression{}
 	filter.SetDimensions(&costexplorer.DimensionValues{
-		Key:          aws.String(costexplorer.DimensionLinkedAccount),
-		Values:       []*string{aws.String(vars["accountid"])},
+		Key:    aws.String(costexplorer.DimensionLinkedAccount),
+		Values: []*string{aws.String(vars["accountid"])},
 	})
 
 	resp, err := ce.GetCostAndUsage(&costexplorer.GetCostAndUsageInput{
-		Metrics:       []*string{aws.String(costexplorer.MetricBlendedCost)},
-		TimePeriod:    dateInterval,
+		Metrics:     []*string{aws.String(costexplorer.MetricBlendedCost)},
+		TimePeriod:  dateInterval,
 		Granularity: aws.String(costexplorer.GranularityMonthly),
-		Filter: filter,
+		Filter:      filter,
 	})
 	if err != nil {
 		w.WriteHeader(500)
@@ -133,6 +134,68 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(resp.String()))
 }
 
+func GetMonthlyTotalCostAll(w http.ResponseWriter, r *http.Request) {
+	redisKey := "currentmonth.acc.all"
+
+	val, err := rdb.Get(redis_ctx, redisKey).Result()
+	switch {
+	case err == redis.Nil:
+		fmt.Println("No cached result, querying AWS")
+	case err != nil:
+		log.Fatal("Get failed: ", err)
+	}
+
+	if val != "" {
+		fmt.Println("Cached entry found, using for response.")
+		w.WriteHeader(200)
+		w.Write([]byte(val))
+		return
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("eu-central-1"),
+		//		LogLevel: aws.LogLevel(aws.LogDebug),
+	})
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		log.Println(err)
+		return
+	}
+
+	ce := costexplorer.New(sess)
+
+	dateInterval := &costexplorer.DateInterval{}
+	startOfMonth, endOfMonth := getCurrentFullMonthDateRange()
+	dateInterval.SetStart(startOfMonth)
+	dateInterval.SetEnd(endOfMonth)
+
+	resp, err := ce.GetCostAndUsage(&costexplorer.GetCostAndUsageInput{
+		Metrics:     []*string{aws.String(costexplorer.MetricBlendedCost)},
+		TimePeriod:  dateInterval,
+		Granularity: aws.String(costexplorer.GranularityMonthly),
+		GroupBy: []*costexplorer.GroupDefinition{{
+			Type:  aws.String("DIMENSION"),
+			Key: aws.String(costexplorer.DimensionLinkedAccount),
+		}},
+	})
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		log.Println(err)
+		return
+	}
+
+	err = rdb.Set(redis_ctx, redisKey, resp.String(), time.Hour).Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Response queried for all accounts is now cached for the next hour")
+
+	w.WriteHeader(200)
+	w.Write([]byte(resp.String()))
+}
 
 type authenticationMiddleware struct {
 	ClientID string
