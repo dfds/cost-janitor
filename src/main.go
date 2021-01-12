@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,6 +17,7 @@ import (
 )
 
 var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
+var BASIC_VALUE = os.Getenv("COST_JANITOR_BASIC_VALUE")
 
 func main() {
 	fmt.Println("Launching cost-janitor")
@@ -32,7 +34,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.Handle("/get-monthly-total-cost/{accountid}", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCost)))
-	r.HandleFunc("/unprotected/get-monthly-total-cost/{accountid}", GetMonthlyTotalCost)
+	r.Handle("/basic/get-monthly-total-cost/{accountid}", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCost)))
 
 	addr := fmt.Sprintf("%s:8080", LISTEN_ADDRESS)
 	fmt.Printf("HTTP server listening on %s\n", addr)
@@ -88,6 +90,32 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 type authenticationMiddleware struct {
 	ClientID string
 	Provider *oidc.Provider
+}
+
+func BasicAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		splitToken := strings.Split(authHeader, "Basic")
+		if len(splitToken) != 2 {
+			http.Error(w, "Basic value doesn't seem right", http.StatusUnauthorized)
+			return
+		}
+
+		basicValue := strings.TrimSpace(splitToken[1])
+		decoded, err := base64.URLEncoding.DecodeString(basicValue)
+		if err != nil {
+			http.Error(w, "Unable to decode basic value", http.StatusUnauthorized)
+			return
+		}
+		cred := string(decoded)
+
+		if cred != BASIC_VALUE {
+			http.Error(w, "", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler {

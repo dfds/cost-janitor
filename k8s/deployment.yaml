@@ -19,6 +19,12 @@ spec:
       containers:
       - name: cost-janitor
         image: 579478677147.dkr.ecr.eu-central-1.amazonaws.com/ded/cost-janitor:$(Build.BuildId)
+        env:
+        - name: COST_JANITOR_BASIC_VALUE
+          valueFrom:
+            secretKeyRef:
+              name: cost-janitor
+              key: basicvalue
         ports:
         - containerPort: 8080
           name: web
