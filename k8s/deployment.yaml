@@ -5,7 +5,7 @@ metadata:
   labels:
     app: cost-janitor
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: cost-janitor
@@ -35,3 +35,8 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "500m"
+      - name: redis
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+          name: redis

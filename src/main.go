@@ -8,19 +8,29 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/costexplorer"
 	"github.com/coreos/go-oidc"
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
 var BASIC_VALUE = os.Getenv("COST_JANITOR_BASIC_VALUE")
+var redis_ctx = context.Background()
+var rdb *redis.Client
 
 func main() {
 	fmt.Println("Launching cost-janitor")
+
+	rdb = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+		Password: "",
+		DB: 0,
+	})
 
 	provider, err := oidc.NewProvider(context.Background(), "https://login.microsoftonline.com/73a99466-ad05-4221-9f90-e7142aa2f6c1/v2.0")
 	if err != nil {
@@ -43,8 +53,37 @@ func main() {
 	}
 }
 
+func getCurrentFullMonthDateRange() (string, string) {
+	now := time.Now()
+	year, month, _ := now.Date()
+	endOfThisMonth := time.Date(year, month+1, 0, 0, 0, 0, 0, now.Location())
+	monthNumerical := fmt.Sprintf("%v", int(now.Month()))
+	if int(now.Month()) <= 9 {
+		monthNumerical = fmt.Sprintf("0%v", int(now.Month()))
+	}
+
+	return fmt.Sprintf("%v-%v-%v", year, monthNumerical, "01"), fmt.Sprintf("%v-%v-%v", year, monthNumerical, endOfThisMonth.Day())
+}
+
 func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	redisKey := fmt.Sprintf("currentmonth.acc.%s", vars["accountid"])
+
+
+	val, err := rdb.Get(redis_ctx, redisKey).Result()
+	switch {
+	case err == redis.Nil:
+		fmt.Println("No cached result, querying AWS")
+	case err != nil:
+		log.Fatal("Get failed: ", err)
+	}
+
+	if val != "" {
+		fmt.Println("Cached entry found, using for response.")
+		w.WriteHeader(200)
+		w.Write([]byte(val))
+		return
+	}
 
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
@@ -60,8 +99,9 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	ce := costexplorer.New(sess)
 
 	dateInterval := &costexplorer.DateInterval{}
-	dateInterval.SetStart("2021-01-01")
-	dateInterval.SetEnd("2021-01-31")
+	startOfMonth, endOfMonth := getCurrentFullMonthDateRange()
+	dateInterval.SetStart(startOfMonth)
+	dateInterval.SetEnd(endOfMonth)
 
 	filter := &costexplorer.Expression{}
 	filter.SetDimensions(&costexplorer.DimensionValues{
@@ -81,6 +121,13 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+
+	err = rdb.Set(redis_ctx, redisKey, resp.String(), time.Hour).Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Response queried for account %s is now cached for the next hour\n", vars["accountid"])
 
 	w.WriteHeader(200)
 	w.Write([]byte(resp.String()))
