@@ -15,6 +15,8 @@ import (
 	"strings"
 )
 
+var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
+
 func main() {
 	fmt.Println("Launching cost-janitor")
 
@@ -29,10 +31,12 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/get-monthly-total-cost/{accountid}", GetMonthlyTotalCost)
+	r.Handle("/get-monthly-total-cost/{accountid}", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCost)))
+	r.HandleFunc("/unprotected/get-monthly-total-cost/{accountid}", GetMonthlyTotalCost)
 
-	println("HTTP server listening on :8080")
-	if err := http.ListenAndServe(":8080", handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(authMiddleware.Middleware(r)))); err != nil {
+	addr := fmt.Sprintf("%s:8080", LISTEN_ADDRESS)
+	fmt.Printf("HTTP server listening on %s\n", addr)
+	if err := http.ListenAndServe(addr, handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r))); err != nil {
 		log.Fatal(err)
 	}
 }
