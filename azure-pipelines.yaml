@@ -11,6 +11,7 @@ trigger:
     - README.md
     - LICENSE
     - azure-pipelines.yaml
+    - notes.md
     include:
     - k8s/*
     - src/*
