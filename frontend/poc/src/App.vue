@@ -1,17 +1,37 @@
 <template>
   <div id="app">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
+    <auth-header v-on:login="login" v-on:logout="logout" />
+    <HelloWorld  msg="Welcome to Your Vue.js App"/>
   </div>
 </template>
 
 <script>
 import HelloWorld from './components/HelloWorld.vue'
+import AuthHeader from './components/AuthHeader.vue'
+import { mapMutations } from 'vuex';
 
 export default {
-  name: 'App',
-  components: {
-    HelloWorld
-  }
+    name: 'App',
+    components: {
+      HelloWorld,
+      AuthHeader
+    },
+    data() {
+      return {
+
+      }
+    },
+    methods: {
+    ...mapMutations(['setAccessToken']),
+    login: function (account) {
+        this.account = account;
+        console.log(this.account);
+    },
+    logout: function () {
+        console.log('logging out');
+        this.account = undefined;
+    }
+  },
 }
 </script>
 

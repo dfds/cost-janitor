@@ -97,7 +97,7 @@
   dependencies:
     tslib "^2.0.0"
 
-"@azure/msal-browser@^2.3.1":
+"@azure/msal-browser@^2.11.1":
   version "2.11.1"
   resolved "https://registry.yarnpkg.com/@azure/msal-browser/-/msal-browser-2.11.1.tgz#8f1ffbfaf983d4671af82f8ecd969168933ee23c"
   integrity sha512-47lg70btdOw5BaA3HtWZVJpvorxFjDVq8Ngt2421x4xnPH8SnHoGZl17iMeSjMlzGwGF0YdQ+/lnUUwR54+z7A==
