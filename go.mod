@@ -3,7 +3,7 @@ module github.com/dfds/cost-janitor
 go 1.15
 
 require (
-	github.com/GeertJohan/go.rice v1.0.2 // indirect
+	github.com/GeertJohan/go.rice v1.0.2
 	github.com/aws/aws-sdk-go v1.37.8
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/go-redis/redis/v8 v8.5.0

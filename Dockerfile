@@ -3,18 +3,19 @@ WORKDIR /frontend-build
 COPY ./frontend/poc .
 
 RUN npm install
-RUN npm install -g yarn
 RUN yarn run build
 
 
 FROM golang:alpine as build
 
+WORKDIR /src
+
 COPY . .
-COPY --from=nodejs-builder /frontend-build/dist /frontend/poc/dist
+COPY --from=nodejs-builder /frontend-build/dist /src/frontend/poc/dist
 
-WORKDIR /
-
-RUN mkdir -p /app/dist && go build -i -o /app/dist/cost_janitor
+RUN go get github.com/GeertJohan/go.rice/rice
+RUN cd src && rice embed-go
+RUN mkdir -p /app/dist && cd src && go build -i -o /app/dist/cost_janitor
 
 FROM golang:alpine
 

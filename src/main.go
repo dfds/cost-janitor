@@ -5,6 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	rice "github.com/GeertJohan/go.rice"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/costexplorer"
@@ -13,13 +21,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/markbates/pkger"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
-    "github.com/GeertJohan/go.rice"
 )
 
 var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
@@ -41,7 +42,6 @@ func main() {
 			DB:       0,
 		})
 	}
-
 
 	provider, err := oidc.NewProvider(context.Background(), "https://login.microsoftonline.com/73a99466-ad05-4221-9f90-e7142aa2f6c1/v2.0")
 	if err != nil {
@@ -123,7 +123,6 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	redisKey := fmt.Sprintf("currentmonth.acc.%s", vars["accountid"])
 
-
 	if UseCache() {
 		val, err := rdb.Get(redis_ctx, redisKey).Result()
 		switch {
@@ -140,7 +139,6 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
 
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
@@ -186,7 +184,6 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	if UseCache() {
 		fmt.Printf("Response queried for account %s is now cached for the next hour\n", vars["accountid"])
 	}
@@ -215,7 +212,6 @@ func GetMonthlyTotalCostAll(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
 		//		LogLevel: aws.LogLevel(aws.LogDebug),
@@ -239,8 +235,8 @@ func GetMonthlyTotalCostAll(w http.ResponseWriter, r *http.Request) {
 		TimePeriod:  dateInterval,
 		Granularity: aws.String(costexplorer.GranularityMonthly),
 		GroupBy: []*costexplorer.GroupDefinition{{
-			Type:  aws.String("DIMENSION"),
-			Key: aws.String(costexplorer.DimensionLinkedAccount),
+			Type: aws.String("DIMENSION"),
+			Key:  aws.String(costexplorer.DimensionLinkedAccount),
 		}},
 	})
 	if err != nil {
