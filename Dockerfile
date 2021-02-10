@@ -2,7 +2,7 @@ FROM node:current-buster as nodejs-builder
 WORKDIR /frontend-build
 COPY ./frontend/poc .
 
-RUN npm install
+RUN yarn install
 RUN yarn run build
 
 
