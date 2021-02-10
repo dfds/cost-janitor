@@ -65,7 +65,7 @@ func main() {
 
 	addr := fmt.Sprintf("%s:8080", LISTEN_ADDRESS)
 	fmt.Printf("HTTP server listening on %s\n", addr)
-	if err := http.ListenAndServe(addr, handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r))); err != nil {
+	if err := http.ListenAndServe(addr, handlers.LoggingHandler(os.Stdout, r)); err != nil {
 		log.Fatal(err)
 	}
 }
