@@ -44,7 +44,7 @@ stages:
           command: 'build'
           buildContext: ''
           Dockerfile: 'Dockerfile'
-          arguments: '-t cost-janitor'
+          arguments: '-t cost-janitor --build-arg HELLMAN_URL=$(HELLMAN_URL)'
   
       - task: ECRPushImage@1
         inputs:
