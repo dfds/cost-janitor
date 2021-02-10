@@ -9,13 +9,6 @@ metadata:
     component: ingress
 spec:
   rules:
-  - host: api.hellman.oxygen.dfds.cloud
-    http:
-      paths:
-      - backend:
-          serviceName: cost-janitor
-          servicePort: web
-        path: /cost-janitor
   - host: cost-janitor.hellman.oxygen.dfds.cloud
     http:
       paths:
