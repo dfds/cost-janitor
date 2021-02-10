@@ -1,8 +1,8 @@
 <template>
   <div class="container">
     <div class="inner">
-    <h1>Billing</h1>
-    <CapabilityListing />
+      <h1>Billing</h1>
+      <CapabilityListing v-bind:capabilities="this.capabilities" v-bind:logged_in="this.logged_in" />
     </div>
   </div>
 </template>
@@ -13,15 +13,22 @@ import CapabilityListing from './CapabilityListing.vue'
 export default {
   name: 'HelloWorld',
   props: {
-    msg: String
+    msg: String,
+    logged_in: Boolean,
+    capabilities: Array
+  },
+  data() {
+    return {
+    }
   },
   components: {
     CapabilityListing
   }
 }
+
+
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
 h3 {
   margin: 40px 0 0;
@@ -40,6 +47,7 @@ a {
 
 h1 {
   font-size: 4em;
+  margin-left: 15px;
 }
 
 .container {
@@ -50,11 +58,12 @@ h1 {
     align-items: flex-start;
     background-color: #423e48;
     color: #c9c9c9;
-    height: 100vh;
 }
 
 .inner {
-  margin-left: 35px;
-  padding-top: 35px;
+    padding-top: 35px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 </style>

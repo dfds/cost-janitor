@@ -1,10 +1,8 @@
 <template>
-  <div class="capabilityListing">
-      <ul>
-          <li>xaxa</li>
-          <li>xaxa</li>
-          <li>xaxa</li>
-      </ul>
+  <div class="capabilityListing" v-if="this.logged_in">
+      <div class="capability" v-for="capability in capabilities" :key="capability.id">
+          <span class="title">{{capability.name}}</span>
+      </div>
   </div>
 </template>
 
@@ -12,7 +10,14 @@
 export default {
   name: 'HelloWorld',
   props: {
-    msg: String
+    msg: String,
+    logged_in: Boolean,
+    capabilities: Array
+  },
+  data() {
+      return {
+
+      }
   }
 }
 </script>
@@ -32,14 +37,33 @@ ul {
 li {
     display: inline-block;
     margin: 0 10px;
+    margin-top: 8px;
 }
 a {
     color: #42b983;
 }
 
+.title {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    margin-left: 10px;
+    font-size: 1.7em;
+}
+
+.capability {
+    display: flex;
+    flex-direction: column;
+    font-size: 1.4em;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    width: 100%;
+    background-color: #7a7878;
+}
+
 .capabilityListing {
     margin-top: 10px;
-    margin-left: 15px;
+    margin-left: 25px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;

@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <auth-header v-on:login="login" v-on:logout="logout" />
-    <HelloWorld  msg="Welcome to Your Vue.js App"/>
+    <auth-header v-on:captoken="handleCapToken" v-on:login="login" v-on:logout="logout" />
+    <HelloWorld v-bind:capabilities="this.capabilities" v-bind:logged_in="this.logged_in"  msg="Welcome to Your Vue.js App"/>
   </div>
 </template>
 
@@ -18,18 +18,48 @@ export default {
     },
     data() {
       return {
-
+        logged_in: false,
+        capabilities: []
+      }
+    },
+    mounted() {
+      this.logged_in = false;
+    },
+    watch: {
+      logged_in: function(val) {
+        if (val === true) {
+          console.log("x");
+        }
       }
     },
     methods: {
     ...mapMutations(['setAccessToken']),
     login: function (account) {
         this.account = account;
+        this.logged_in = true;
         console.log(this.account);
     },
     logout: function () {
         console.log('logging out');
         this.account = undefined;
+        this.logged_in = false;
+    },
+    handleCapToken: function (resp) { 
+      this.logged_in = true;
+      this.getCapabilities(resp);
+    },
+    getCapabilities: function (token) {
+      var req = new XMLHttpRequest();
+      var x = this;
+      req.onload = function () {
+        var resp = JSON.parse(req.responseText);
+        x.capabilities = resp.items;
+        console.log(x.capabilities);
+      };
+      req.open("GET", "/api/get-capabilities");
+      req.setRequestHeader("Authorization", "Bearer " + token.accessToken);
+      req.send();
+
     }
   },
 }
@@ -38,10 +68,10 @@ export default {
 <style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
   color: #2c3e50;
+}
+.navbar-menu {
+  text-align: center;
 }
 
 html, body, div, span, applet, object, iframe,

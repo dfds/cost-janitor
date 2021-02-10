@@ -44,6 +44,14 @@ export default {
     }
     this.account = accounts[0];
     this.$emit('login', this.account);
+
+    this.$msalInstance.acquireTokenSilent(
+      {
+        scopes: ["api://24420be9-46e5-4584-acd7-64850d2f2a03/access_as_user"],
+        account: this.account
+      }).then(resp => {
+        this.$emit('captoken', resp);
+      }); 
   },
   methods: {
     async HandleMsalResponse(response) {
@@ -65,8 +73,9 @@ export default {
             {
               scopes: ["api://24420be9-46e5-4584-acd7-64850d2f2a03/access_as_user"],
               account: this.account
-            }
-            );
+            }).then(resp => {
+              this.$emit('captoken', resp);
+            });
         })
         .catch(error => {
           console.error(`error during authentication: ${error}`);
@@ -86,11 +95,9 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 
-div {
-    height: 70px;
-}
+
 
 a {
     height: 15px;

@@ -11,20 +11,26 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/markbates/pkger"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+    "github.com/GeertJohan/go.rice"
 )
 
 var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
 var BASIC_VALUE = os.Getenv("COST_JANITOR_BASIC_VALUE")
 var redis_ctx = context.Background()
 var rdb *redis.Client
+var HELLMAN_API_ENDPOINT string
 
 func main() {
 	fmt.Println("Launching cost-janitor")
+
+	embedFiles()
 
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -48,11 +54,44 @@ func main() {
 	r.Handle("/basic/get-monthly-total-cost/{accountid}", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCost)))
 	r.Handle("/basic/get-monthly-total-cost-all", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
 
+	r.Handle("/api/get-capabilities", http.HandlerFunc(GetCapabilities))
+
+	r.PathPrefix("/").Handler(http.FileServer(rice.MustFindBox("../frontend/poc/dist").HTTPBox()))
+
 	addr := fmt.Sprintf("%s:8080", LISTEN_ADDRESS)
 	fmt.Printf("HTTP server listening on %s\n", addr)
 	if err := http.ListenAndServe(addr, handlers.LoggingHandler(os.Stdout, handlers.CompressHandler(r))); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func GetCapabilities(w http.ResponseWriter, r *http.Request) {
+	url := fmt.Sprintf("%s/capability/api/v1/capabilities", HELLMAN_API_ENDPOINT)
+	httpCli := http.DefaultClient
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+	}
+
+	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+
+	resp, err := httpCli.Do(req)
+	if err != nil {
+		log.Println("Request to CapSvc failed")
+		log.Println(err)
+		w.WriteHeader(500)
+	}
+
+	respRawBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Unable to read response body, sending 500 response")
+		w.WriteHeader(500)
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	w.Write(respRawBody)
 }
 
 func getCurrentFullMonthDateRange() (string, string) {
@@ -258,4 +297,8 @@ func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler 
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func embedFiles() {
+	pkger.Include("/frontend/poc/dist")
 }
