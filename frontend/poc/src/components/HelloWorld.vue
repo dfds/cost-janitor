@@ -2,7 +2,7 @@
   <div class="container">
     <div class="inner">
       <h1>Billing</h1>
-      <CapabilityListing v-bind:capabilities="this.capabilities" v-bind:logged_in="this.logged_in" />
+      <CapabilityListing v-bind:capabilities="this.capabilities" v-bind:costs="this.costs" v-bind:logged_in="this.logged_in" />
     </div>
   </div>
 </template>
@@ -15,7 +15,8 @@ export default {
   props: {
     msg: String,
     logged_in: Boolean,
-    capabilities: Array
+    capabilities: Array,
+    costs: {}
   },
   data() {
     return {

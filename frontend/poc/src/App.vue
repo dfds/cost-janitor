@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <auth-header v-on:captoken="handleCapToken" v-on:login="login" v-on:logout="logout" />
-    <HelloWorld v-bind:capabilities="this.capabilities" v-bind:logged_in="this.logged_in"  msg="Welcome to Your Vue.js App"/>
+    <HelloWorld v-bind:capabilities="this.capabilities" v-bind:costs="this.costs" v-bind:logged_in="this.logged_in"  msg="Welcome to Your Vue.js App"/>
   </div>
 </template>
 
@@ -19,7 +19,8 @@ export default {
     data() {
       return {
         logged_in: false,
-        capabilities: []
+        capabilities: [],
+        costs: {}
       }
     },
     mounted() {
@@ -47,6 +48,7 @@ export default {
     handleCapToken: function (resp) { 
       this.logged_in = true;
       this.getCapabilities(resp);
+      this.getAllCosts(resp);
     },
     getCapabilities: function (token) {
       var req = new XMLHttpRequest();
@@ -60,6 +62,25 @@ export default {
       req.setRequestHeader("Authorization", "Bearer " + token.accessToken);
       req.send();
 
+    },
+    getAllCosts: function (token) {
+      var req = new XMLHttpRequest();
+      var x = this;
+      req.onload = function () {
+        var resp = JSON.parse(req.responseText);
+        x.costs = resp;
+        console.log(x.costs);
+
+        var accountCostKv = {};
+        resp.ResultsByTime[0].Groups.forEach(val => {
+          accountCostKv[val.Keys[0].toString()] = val.Metrics.BlendedCost.Amount
+        })
+        x.costs = accountCostKv;
+        console.log(x.costs);
+      };
+      req.open("GET", "/api/get-monthly-total-cost-all");
+      req.setRequestHeader("Authorization", "Bearer " + token.accessToken);
+      req.send();      
     }
   },
 }

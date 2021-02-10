@@ -1,7 +1,15 @@
 <template>
   <div class="capabilityListing" v-if="this.logged_in">
       <div class="capability" v-for="capability in capabilities" :key="capability.id">
-          <span class="title">{{capability.name}}</span>
+          <div style="display: flex">
+              <div style="flex: 1">
+                <span class="title">{{capability.name}}</span>
+              </div>
+              <div style="flex: 1; display: flex; justify-content: flex-end;">
+                <span class="title">${{ costs[getAwsAccountId(capability)] }}</span>
+              </div>              
+          </div>
+          
       </div>
   </div>
 </template>
@@ -12,11 +20,21 @@ export default {
   props: {
     msg: String,
     logged_in: Boolean,
-    capabilities: Array
+    capabilities: Array,
+    costs: Object
   },
   data() {
       return {
 
+      }
+  },
+  methods: {
+      getAwsAccountId(cap) {
+          if (cap.contexts.length > 0) {
+              return cap.contexts[0].awsAccountId;
+          } else {
+              return 0;
+          }
       }
   }
 }

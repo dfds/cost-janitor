@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -23,6 +24,7 @@ import (
 
 var LISTEN_ADDRESS = os.Getenv("COST_JANITOR_LISTEN_ADDRESS")
 var BASIC_VALUE = os.Getenv("COST_JANITOR_BASIC_VALUE")
+var CACHE_ENABLE = os.Getenv("COST_JANITOR_CACHE_ENABLE")
 var redis_ctx = context.Background()
 var rdb *redis.Client
 var HELLMAN_API_ENDPOINT string
@@ -32,11 +34,14 @@ func main() {
 
 	embedFiles()
 
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
+	if UseCache() {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+		})
+	}
+
 
 	provider, err := oidc.NewProvider(context.Background(), "https://login.microsoftonline.com/73a99466-ad05-4221-9f90-e7142aa2f6c1/v2.0")
 	if err != nil {
@@ -49,10 +54,10 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.Handle("/get-monthly-total-cost/{accountid}", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCost)))
-	r.Handle("/get-monthly-total-cost-all", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
-	r.Handle("/basic/get-monthly-total-cost/{accountid}", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCost)))
-	r.Handle("/basic/get-monthly-total-cost-all", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
+	r.Handle("/api/get-monthly-total-cost/{accountid}", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCost)))
+	r.Handle("/api/get-monthly-total-cost-all", authMiddleware.Middleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
+	r.Handle("/api/basic/get-monthly-total-cost/{accountid}", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCost)))
+	r.Handle("/api/basic/get-monthly-total-cost-all", BasicAuthMiddleware(http.HandlerFunc(GetMonthlyTotalCostAll)))
 
 	r.Handle("/api/get-capabilities", http.HandlerFunc(GetCapabilities))
 
@@ -106,24 +111,36 @@ func getCurrentFullMonthDateRange() (string, string) {
 	return fmt.Sprintf("%v-%v-%v", year, monthNumerical, "01"), fmt.Sprintf("%v-%v-%v", year, monthNumerical, endOfThisMonth.Day())
 }
 
+func UseCache() bool {
+	if CACHE_ENABLE == "true" || CACHE_ENABLE == "" {
+		return true
+	} else {
+		return false
+	}
+}
+
 func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	redisKey := fmt.Sprintf("currentmonth.acc.%s", vars["accountid"])
 
-	val, err := rdb.Get(redis_ctx, redisKey).Result()
-	switch {
-	case err == redis.Nil:
-		fmt.Println("No cached result, querying AWS")
-	case err != nil:
-		log.Fatal("Get failed: ", err)
+
+	if UseCache() {
+		val, err := rdb.Get(redis_ctx, redisKey).Result()
+		switch {
+		case err == redis.Nil:
+			fmt.Println("No cached result, querying AWS")
+		case err != nil:
+			log.Fatal("Get failed: ", err)
+		}
+
+		if val != "" {
+			fmt.Println("Cached entry found, using for response.")
+			w.WriteHeader(200)
+			w.Write([]byte(val))
+			return
+		}
 	}
 
-	if val != "" {
-		fmt.Println("Cached entry found, using for response.")
-		w.WriteHeader(200)
-		w.Write([]byte(val))
-		return
-	}
 
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
@@ -162,12 +179,17 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = rdb.Set(redis_ctx, redisKey, resp.String(), time.Hour).Err()
-	if err != nil {
-		log.Fatal(err)
+	if UseCache() {
+		err = rdb.Set(redis_ctx, redisKey, resp.String(), time.Hour).Err()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	fmt.Printf("Response queried for account %s is now cached for the next hour\n", vars["accountid"])
+
+	if UseCache() {
+		fmt.Printf("Response queried for account %s is now cached for the next hour\n", vars["accountid"])
+	}
 
 	w.WriteHeader(200)
 	w.Write([]byte(resp.String()))
@@ -176,20 +198,23 @@ func GetMonthlyTotalCost(w http.ResponseWriter, r *http.Request) {
 func GetMonthlyTotalCostAll(w http.ResponseWriter, r *http.Request) {
 	redisKey := "currentmonth.acc.all"
 
-	val, err := rdb.Get(redis_ctx, redisKey).Result()
-	switch {
-	case err == redis.Nil:
-		fmt.Println("No cached result, querying AWS")
-	case err != nil:
-		log.Fatal("Get failed: ", err)
+	if UseCache() {
+		val, err := rdb.Get(redis_ctx, redisKey).Result()
+		switch {
+		case err == redis.Nil:
+			fmt.Println("No cached result, querying AWS")
+		case err != nil:
+			log.Fatal("Get failed: ", err)
+		}
+
+		if val != "" {
+			fmt.Println("Cached entry found, using for response.")
+			w.WriteHeader(200)
+			w.Write([]byte(val))
+			return
+		}
 	}
 
-	if val != "" {
-		fmt.Println("Cached entry found, using for response.")
-		w.WriteHeader(200)
-		w.Write([]byte(val))
-		return
-	}
 
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("eu-central-1"),
@@ -225,15 +250,27 @@ func GetMonthlyTotalCostAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = rdb.Set(redis_ctx, redisKey, resp.String(), time.Hour).Err()
+	serialised, err := json.Marshal(resp)
 	if err != nil {
-		log.Fatal(err)
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		log.Println(err)
+		return
 	}
 
-	fmt.Println("Response queried for all accounts is now cached for the next hour")
+	if UseCache() {
+		err = rdb.Set(redis_ctx, redisKey, string(serialised), time.Hour).Err()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if UseCache() {
+		fmt.Println("Response queried for all accounts is now cached for the next hour")
+	}
 
 	w.WriteHeader(200)
-	w.Write([]byte(resp.String()))
+	w.Write(serialised)
 }
 
 type authenticationMiddleware struct {
