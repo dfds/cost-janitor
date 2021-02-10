@@ -1,8 +1,18 @@
+FROM node:current-buster as nodejs-builder
+WORKDIR /frontend-build
+COPY ./frontend/poc .
+
+RUN npm install
+RUN npm install -g yarn
+RUN yarn run build
+
+
 FROM golang:alpine as build
 
-COPY src/ /src
+COPY . .
+COPY --from=nodejs-builder /frontend-build/dist /frontend/poc/dist
 
-WORKDIR /src
+WORKDIR /
 
 RUN mkdir -p /app/dist && go build -i -o /app/dist/cost_janitor
 
