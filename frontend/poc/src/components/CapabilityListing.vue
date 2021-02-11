@@ -3,10 +3,10 @@
       <div class="capability" v-for="capability in capabilities" :key="capability.id">
           <div style="display: flex">
               <div style="flex: 1">
-                <span class="title">{{capability.name}}</span>
+                <span class="title entity">{{capability.name}}</span>
               </div>
               <div style="flex: 1; display: flex; justify-content: flex-end;">
-                <span class="title">${{ costs[getAwsAccountId(capability)] }}</span>
+                <span class="entity" style="margin-right: 10px;">${{ formatCost(costs[getAwsAccountId(capability)] )}}</span>
               </div>              
           </div>
           
@@ -35,13 +35,21 @@ export default {
           } else {
               return 0;
           }
+      },
+      formatCost(val) {
+          var x = parseFloat(val);
+          if (Number.isNaN(x)) {
+              return 0;
+          }
+
+          return x.toFixed(5);
       }
   }
 }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style  scoped>
 h3 {
     margin: 40px 0 0;
 }
@@ -65,6 +73,9 @@ a {
     margin-top: 4px;
     margin-bottom: 4px;
     margin-left: 10px;
+}
+
+.entity {
     font-size: 1.7em;
 }
 
@@ -82,6 +93,7 @@ a {
 .capabilityListing {
     margin-top: 10px;
     margin-left: 25px;
+    margin-right: 25px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;

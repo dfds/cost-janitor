@@ -59,6 +59,7 @@ h1 {
     align-items: flex-start;
     background-color: #423e48;
     color: #c9c9c9;
+    padding-bottom: 15px;
 }
 
 .inner {
